@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Data Table</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Custom styles for range slider */
+        input[type="range"] {
+            -webkit-appearance: none;
+            height: 5px;
+            background: #e2e8f0;
+            border-radius: 5px;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 15px;
+            height: 15px;
+            background: #3b82f6;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        
+        /* Animation for sorting arrows */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .sort-arrow {
+            animation: fadeIn 0.2s ease-out;
+        }
+        
+        /* Responsive table */
+        @media (max-width: 768px) {
+            table.responsive-table {
+                border: 0;
+            }
+            
+            table.responsive-table thead {
+                display: none;
+            }
+            
+            table.responsive-table tr {
+                display: block;
+                margin-bottom: 1rem;
+                border: 1px solid #e2e8f0;
+                border-radius: 0.5rem;
+                padding: 0.5rem;
+            }
+            
+            table.responsive-table td {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 0.5rem;
+                text-align: right;
+                border-bottom: 1px solid #e2e8f0;
+            }
+            
+            table.responsive-table td::before {
+                content: attr(data-label);
+                font-weight: bold;
+                margin-right: 1rem;
+                color: #4b5563;
+            }
+            
+            table.responsive-table td:last-child {
+                border-bottom: 0;
+            }
+        }
+        
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e0;
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #a0aec0;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="container mx-auto px-4 py-8 max-w-7xl">
+        <div class="bg-white rounded-xl shadow-md overflow-hidden">
+            <!-- Header with title and search -->
+            <div class="p-6 border-b border-gray-200">
+                <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                    <div>
+                        <h1 class="text-2xl font-bold text-gray-800">Employee Records</h1>
+                        <p class="text-gray-600">Interactive data table with advanced features</p>
+                    </div>
+                    <div class="relative w-full md:w-64">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <i class="fas fa-search text-gray-400"></i>
+                        </div>
+                        <input type="text" id="globalSearch" class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg bg-gray-50 focus:ring-blue-500 focus:border-blue-500" placeholder="Search...">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Filter controls -->
+            <div class="p-4 border-b border-gray-200 bg-gray-50">
+                <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    <!-- Department filter -->
+                    <div>
+                        <label for="departmentFilter" class="block text-sm font-medium text-gray-700 mb-1">Department</label>
+                        <select id="departmentFilter" class="w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                            <option value="">All Departments</option>
+                            <option value="Engineering">Engineering</option>
+                            <option value="Marketing">Marketing</option>
+                            <option value="Sales">Sales</option>
+                            <option value="HR">Human Resources</option>
+                            <option value="Finance">Finance</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Status filter -->
+                    <div>
+                        <label for="statusFilter" class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                        <select id="statusFilter" class="w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                            <option value="">All Statuses</option>
+                            <option value="Active">Active</option>
+                            <option value="On Leave">On Leave</option>
+                            <option value="Terminated">Terminated</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Salary range filter -->
+                    <div>
+                        <label for="salaryRange" class="block text-sm font-medium text-gray-700 mb-1">Salary Range</label>
+                        <div class="flex items-center space-x-2">
+                            <span id="minSalaryValue" class="text-sm text-gray-600">$30k</span>
+                            <input type="range" id="salaryRange" min="30000" max="150000" step="5000" value="30000" class="w-full">
+                            <span id="maxSalaryValue" class="text-sm text-gray-600">$150k</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Clear filters button -->
+                    <div class="flex items-end">
+                        <button id="clearFilters" class="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 py-2 px-4 rounded-md transition duration-150 ease-in-out">
+                            <i class="fas fa-filter-circle-xmark mr-2"></i>Clear Filters
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Table container -->
+            <div class="overflow-x-auto">
+                <table class="min-w-full responsive-table">
+                    <thead class="bg-gray-100">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer sortable" data-column="id">
+                                ID <i class="fas fa-sort ml-1 text-gray-400"></i>
+                            </th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer sortable" data-column="name">
+                                Name <i class="fas fa-sort ml-1 text-gray-400"></i>
+                            </th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer sortable" data-column="position">
+                                Position <i class="fas fa-sort ml-1 text-gray-400"></i>
+                            </th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer sortable" data-column="department">
+                                Department <i class="fas fa-sort ml-1 text-gray-400"></i>
+                            </th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer sortable" data-column="salary">
+                                Salary <i class="fas fa-sort ml-1 text-gray-400"></i>
+                            </th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer sortable" data-column="hireDate">
+                                Hire Date <i class="fas fa-sort ml-1 text-gray-400"></i>
+                            </th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer sortable" data-column="status">
+                                Status <i class="fas fa-sort ml-1 text-gray-400"></i>
+                            </th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Actions
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody" class="bg-white divide-y divide-gray-200">
+                        <!-- Data will be populated here by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Pagination and info -->
+            <div class="px-6 py-4 border-t border-gray-200 flex flex-col md:flex-row items-center justify-between bg-gray-50">
+                <div class="mb-4 md:mb-0">
+                    <p id="tableInfo" class="text-sm text-gray-700"></p>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <button id="prevPage" class="px-3 py-1 border border-gray-300 rounded-md bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                    <div id="pageNumbers" class="flex space-x-1">
+                        <!-- Page numbers will be added here -->
+                    </div>
+                    <button id="nextPage" class="px-3 py-1 border border-gray-300 rounded-md bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Sample data
+        const employees = [
+            { id: 1, name: 'John Smith', position: 'Software Engineer', department: 'Engineering', salary: 85000, hireDate: '2020-05-15', status: 'Active' },
+            { id: 2, name: 'Emily Johnson', position: 'Marketing Manager', department: 'Marketing', salary: 75000, hireDate: '2019-08-22', status: 'Active' },
+            { id: 3, name: 'Michael Brown', position: 'Sales Representative', department: 'Sales', salary: 65000, hireDate: '2021-02-10', status: 'Active' },
+            { id: 4, name: 'Sarah Davis', position: 'HR Specialist', department: 'HR', salary: 60000, hireDate: '2018-11-05', status: 'Active' },
+            { id: 5, name: 'Robert Wilson', position: 'Senior Developer', department: 'Engineering', salary: 95000, hireDate: '2017-06-18', status: 'Active' },
+            { id: 6, name: 'Jennifer Lee', position: 'Financial Analyst', department: 'Finance', salary: 70000, hireDate: '2020-09-30', status: 'On Leave' },
+            { id: 7, name: 'David Miller', position: 'Product Manager', department: 'Engineering', salary: 90000, hireDate: '2019-04-12', status: 'Active' },
+            { id: 8, name: 'Lisa Taylor', position: 'UX Designer', department: 'Engineering', salary: 80000, hireDate: '2021-01-25', status: 'Active' },
+            { id: 9, name: 'James Anderson', position: 'Sales Director', department: 'Sales', salary: 110000, hireDate: '2016-07-08', status: 'Active' },
+            { id: 10, name: 'Patricia White', position: 'Recruiter', department: 'HR', salary: 58000, hireDate: '2022-03-14', status: 'Active' },
+            { id: 11, name: 'Christopher Martin', position: 'Junior Developer', department: 'Engineering', salary: 65000, hireDate: '2022-05-20', status: 'Active' },
+            { id: 12, name: 'Jessica Garcia', position: 'Marketing Coordinator', department: 'Marketing', salary: 55000, hireDate: '2021-08-15', status: 'Terminated' },
+            { id: 13, name: 'Daniel Martinez', position: 'Accountant', department: 'Finance', salary: 72000, hireDate: '2020-11-03', status: 'Active' },
+            { id: 14, name: 'Amanda Robinson', position: 'Technical Lead', department: 'Engineering', salary: 105000, hireDate: '2018-09-17', status: 'Active' },
+            { id: 15, name: 'Matthew Clark', position: 'Customer Support', department: 'Sales', salary: 48000, hireDate: '2022-01-10', status: 'Active' },
+            { id: 16, name: 'Ashley Rodriguez', position: 'UI Designer', department: 'Engineering', salary: 78000, hireDate: '2021-04-05', status: 'On Leave' },
+            { id: 17, name: 'Andrew Lewis', position: 'DevOps Engineer', department: 'Engineering', salary: 92000, hireDate: '2019-12-01', status: 'Active' },
+            { id: 18, name: 'Nicole Walker', position: 'HR Manager', department: 'HR', salary: 85000, hireDate: '2017-03-22', status: 'Active' },
+            { id: 19, name: 'Kevin Hall', position: 'Financial Controller', department: 'Finance', salary: 95000, hireDate: '2016-10-15', status: 'Active' },
+            { id: 20, name: 'Stephanie Young', position: 'Marketing Director', department: 'Marketing', salary: 100000, hireDate: '2018-05-08', status: 'Active' }
+        ];
+
+        // DOM elements
+        const tableBody = document.getElementById('tableBody');
+        const globalSearch = document.getElementById('globalSearch');
+        const departmentFilter = document.getElementById('departmentFilter');
+        const statusFilter = document.getElementById('statusFilter');
+        const salaryRange = document.getElementById('salaryRange');
+        const minSalaryValue = document.getElementById('minSalaryValue');
+        const maxSalaryValue = document.getElementById('maxSalaryValue');
+        const clearFilters = document.getElementById('clearFilters');
+        const prevPage = document.getElementById('prevPage');
+        const nextPage = document.getElementById('nextPage');
+        const pageNumbers = document.getElementById('pageNumbers');
+        const tableInfo = document.getElementById('tableInfo');
+        const sortableHeaders = document.querySelectorAll('.sortable');
+
+        // State variables
+        let currentPage = 1;
+        const rowsPerPage = 10;
+        let sortColumn = 'id';
+        let sortDirection = 'asc';
+        let filteredData = [...employees];
+
+        // Initialize the table
+        function initTable() {
+            renderTable();
+            updatePagination();
+            updateTableInfo();
+            
+            // Set initial salary range display
+            minSalaryValue.textContent = `$${(salaryRange.min / 1000)}k`;
+            maxSalaryValue.textContent = `$${(salaryRange.max / 1000)}k`;
+        }
+
+        // Render the table with current data
+        function renderTable() {
+            tableBody.innerHTML = '';
+            
+            const startIndex = (currentPage - 1) * rowsPerPage;
+            const endIndex = startIndex + rowsPerPage;
+            const paginatedData = filteredData.slice(startIndex, endIndex);
+            
+            if (paginatedData.length === 0) {
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="8" class="px-6 py-4 text-center text-gray-500">
+                            No records found matching your criteria
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            paginatedData.forEach(employee => {
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-gray-50 transition-colors';
+                
+                // Format salary with commas
+                const formattedSalary = employee.salary.toLocaleString('en-US', {
+                    style: 'currency',
+                    currency: 'USD',
+                    maximumFractionDigits: 0
+                });
+                
+                // Format hire date
+                const hireDate = new Date(employee.hireDate);
+                const formattedDate = hireDate.toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric'
+                });
+                
+                // Status badge color
+                let statusClass = '';
+                if (employee.status === 'Active') {
+                    statusClass = 'bg-green-100 text-green-800';
+                } else if (employee.status === 'On Leave') {
+                    statusClass = 'bg-yellow-100 text-yellow-800';
+                } else {
+                    statusClass = 'bg-red-100 text-red-800';
+                }
+                
+                row.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900" data-label="ID">${employee.id}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" data-label="Name">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0 h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-semibold">
+                                ${employee.name.charAt(0)}
+                            </div>
+                            <div class="ml-4">
+                                <div class="font-medium text-gray-900">${employee.name}</div>
+                                <div class="text-gray-500">${employee.position}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" data-label="Position">${employee.position}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" data-label="Department">
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                            ${employee.department}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" data-label="Salary">${formattedSalary}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" data-label="Hire Date">${formattedDate}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" data-label="Status">
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusClass}">
+                            ${employee.status}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium" data-label="Actions">
+                        <button class="text-blue-600 hover:text-blue-900 mr-3">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button class="text-indigo-600 hover:text-indigo-900 mr-3">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="text-red-600 hover:text-red-900">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                `;
+                
+                tableBody.appendChild(row);
+            });
+        }
+
+        // Update pagination controls
+        function updatePagination() {
+            pageNumbers.innerHTML = '';
+            const totalPages = Math.ceil(filteredData.length / rowsPerPage);
+            
+            // Previous button state
+            prevPage.disabled = currentPage === 1;
+            
+            // Next button state
+            nextPage.disabled = currentPage === totalPages || totalPages === 0;
+            
+            // Always show first page
+            addPageButton(1);
+            
+            // Show ellipsis if needed after first page
+            if (currentPage > 3) {
+                const ellipsis = document.createElement('span');
+                ellipsis.className = 'px-3 py-1 text-gray-700';
+                ellipsis.textContent = '...';
+                pageNumbers.appendChild(ellipsis);
+            }
+            
+            // Show current page and neighbors
+            const startPage = Math.max(2, currentPage - 1);
+            const endPage = Math.min(totalPages - 1, currentPage + 1);
+            
+            for (let i = startPage; i <= endPage; i++) {
+                addPageButton(i);
+            }
+            
+            // Show ellipsis if needed before last page
+            if (currentPage < totalPages - 2 && totalPages > 3) {
+                const ellipsis = document.createElement('span');
+                ellipsis.className = 'px-3 py-1 text-gray-700';
+                ellipsis.textContent = '...';
+                pageNumbers.appendChild(ellipsis);
+            }
+            
+            // Always show last page if there's more than one page
+            if (totalPages > 1) {
+                addPageButton(totalPages);
+            }
+        }
+
+        // Helper function to add a page button
+        function addPageButton(page) {
+            const button = document.createElement('button');
+            button.className = `px-3 py-1 rounded-md ${currentPage === page ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`;
+            button.textContent = page;
+            button.addEventListener('click', () => {
+                currentPage = page;
+                renderTable();
+                updatePagination();
+                updateTableInfo();
+            });
+            pageNumbers.appendChild(button);
+        }
+
+        // Update table information text
+        function updateTableInfo() {
+            const startIndex = (currentPage - 1) * rowsPerPage + 1;
+            const endIndex = Math.min(startIndex + rowsPerPage - 1, filteredData.length);
+            const total = filteredData.length;
+            
+            if (total === 0) {
+                tableInfo.textContent = 'No records found';
+            } else {
+                tableInfo.textContent = `Showing ${startIndex} to ${endIndex} of ${total} entries`;
+            }
+        }
+
+        // Filter data based on current filters
+        function filterData() {
+            const searchTerm = globalSearch.value.toLowerCase();
+            const department = departmentFilter.value;
+            const status = statusFilter.value;
+            const minSalary = parseInt(salaryRange.value);
+            
+            filteredData = employees.filter(employee => {
+                // Global search
+                const matchesSearch = 
+                    employee.id.toString().includes(searchTerm) ||
+                    employee.name.toLowerCase().includes(searchTerm) ||
+                    employee.position.toLowerCase().includes(searchTerm) ||
+                    employee.department.toLowerCase().includes(searchTerm) ||
+                    employee.status.toLowerCase().includes(searchTerm);
+                
+                // Department filter
+                const matchesDepartment = department === '' || employee.department === department;
+                
+                // Status filter
+                const matchesStatus = status === '' || employee.status === status;
+                
+                // Salary filter
+                const matchesSalary = employee.salary >= minSalary;
+                
+                return matchesSearch && matchesDepartment && matchesStatus && matchesSalary;
+            });
+            
+            // Sort the filtered data
+            sortData();
+            
+            // Reset to first page
+            currentPage = 1;
+            
+            // Update UI
+            renderTable();
+            updatePagination();
+            updateTableInfo();
+        }
+
+        // Sort data based on current sort column and direction
+        function sortData() {
+            filteredData.sort((a, b) => {
+                let valueA, valueB;
+                
+                // Handle different data types for sorting
+                if (sortColumn === 'salary' || sortColumn === 'id') {
+                    valueA = a[sortColumn];
+                    valueB = b[sortColumn];
+                } else if (sortColumn === 'hireDate') {
+                    valueA = new Date(a[sortColumn]);
+                    valueB = new Date(b[sortColumn]);
+                } else {
+                    valueA = a[sortColumn].toString().toLowerCase();
+                    valueB = b[sortColumn].toString().toLowerCase();
+                }
+                
+                if (valueA < valueB) {
+                    return sortDirection === 'asc' ? -1 : 1;
+                }
+                if (valueA > valueB) {
+                    return sortDirection === 'asc' ? 1 : -1;
+                }
+                return 0;
+            });
+        }
+
+        // Update sort UI indicators
+        function updateSortIndicators(column) {
+            sortableHeaders.forEach(header => {
+                const icon = header.querySelector('i');
+                if (header.dataset.column === column) {
+                    icon.className = `fas ${sortDirection === 'asc' ? 'fa-sort-up' : 'fa-sort-down'} ml-1 text-blue-500 sort-arrow`;
+                } else {
+                    icon.className = 'fas fa-sort ml-1 text-gray-400';
+                }
+            });
+        }
+
+        // Event listeners
+        globalSearch.addEventListener('input', filterData);
+        departmentFilter.addEventListener('change', filterData);
+        statusFilter.addEventListener('change', filterData);
+        salaryRange.addEventListener('input', () => {
+            minSalaryValue.textContent = `$${(salaryRange.value / 1000).toFixed(0)}k`;
+            filterData();
+        });
+        
+        clearFilters.addEventListener('click', () => {
+            globalSearch.value = '';
+            departmentFilter.value = '';
+            statusFilter.value = '';
+            salaryRange.value = salaryRange.min;
+            minSalaryValue.textContent = `$${(salaryRange.min / 1000)}k`;
+            filterData();
+        });
+        
+        prevPage.addEventListener('click', () => {
+            if (currentPage > 1) {
+                currentPage--;
+                renderTable();
+                updatePagination();
+                updateTableInfo();
+            }
+        });
+        
+        nextPage.addEventListener('click', () => {
+            const totalPages = Math.ceil(filteredData.length / rowsPerPage);
+            if (currentPage < totalPages) {
+                currentPage++;
+                renderTable();
+                updatePagination();
+                updateTableInfo();
+            }
+        });
+        
+        // Sortable headers
+        sortableHeaders.forEach(header => {
+            header.addEventListener('click', () => {
+                const column = header.dataset.column;
+                
+                if (sortColumn === column) {
+                    // Toggle direction if same column clicked
+                    sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+                } else {
+                    // Default to ascending for new column
+                    sortColumn = column;
+                    sortDirection = 'asc';
+                }
+                
+                updateSortIndicators(column);
+                filterData(); // This will trigger a re-sort
+            });
+        });
+
+        // Initialize the table on load
+        document.addEventListener('DOMContentLoaded', initTable);
+    </script>
+</body>
+</html>
