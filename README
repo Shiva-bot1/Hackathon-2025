@@ -1,0 +1,15 @@
+This project is a responsive frontend component that displays tabular data with advanced user interaction features. 
+It includes filtering, sorting, and search functionalities, making it easy for users to navigate and manipulate data efficiently.
+
+Features:-
+Responsive Design: Adapts to different screen sizes.
+Sorting: Sort data columns in ascending or descending order.
+Filtering: Filter rows based on user-defined criteria.
+Search: Instantly find relevant data within the table.
+Pagination: Efficiently handles large datasets.
+User-friendly UI: Designed for seamless interaction.
+
+Technologies Used:-
+HTML
+JAVASCRIPT
+
